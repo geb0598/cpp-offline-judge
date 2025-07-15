@@ -42,14 +42,14 @@ bool FileImpl::is_error() const noexcept {
     return std::ferror(fp_.get());
 }
 
-IFileImpl::IFileImpl(std::FILE* fp) : FileImpl(fp) {}
-IFileImpl::IFileImpl(int fd) : FileImpl(fd, "r") {}
-IFileImpl::IFileImpl(const std::filesystem::path& file) : FileImpl(file, "r") {}
+IFile::IFile(std::FILE* fp) : FileImpl(fp) {}
+IFile::IFile(int fd) : FileImpl(fd, "r") {}
+IFile::IFile(const std::filesystem::path& file) : FileImpl(file, "r") {}
 
-bool IFileImpl::is_readable() const noexcept { return true; }
-bool IFileImpl::is_writable() const noexcept { return false; }
+bool IFile::is_readable() const noexcept { return true; }
+bool IFile::is_writable() const noexcept { return false; }
 
-Bytes IFileImpl::Read(size_type size) {
+Bytes IFile::Read(size_type size) {
     if (!is_opened())
         throw std::runtime_error("Attempted to read from the closed stream");
     Bytes buffer(size);
@@ -70,22 +70,22 @@ Bytes IFileImpl::Read(size_type size) {
     return buffer;
 }
 
-auto IFileImpl::Write(const Bytes& data, size_type size) -> size_type {
+auto IFile::Write(const Bytes& data, size_type size) -> size_type {
     throw std::runtime_error("Try writing to read-only stream");
 }
 
-OFileImpl::OFileImpl(std::FILE* fp) : FileImpl(fp) {}
-OFileImpl::OFileImpl(int fd) : FileImpl(fd, "w") {}
-OFileImpl::OFileImpl(const std::filesystem::path& file) : FileImpl(file, "w") {}
+OFile::OFile(std::FILE* fp) : FileImpl(fp) {}
+OFile::OFile(int fd) : FileImpl(fd, "w") {}
+OFile::OFile(const std::filesystem::path& file) : FileImpl(file, "w") {}
 
-bool OFileImpl::is_readable() const noexcept { return false; }
-bool OFileImpl::is_writable() const noexcept { return true; }
+bool OFile::is_readable() const noexcept { return false; }
+bool OFile::is_writable() const noexcept { return true; }
 
-Bytes OFileImpl::Read(size_type size) {
+Bytes OFile::Read(size_type size) {
     throw std::runtime_error("Try reading from write-only stream");
 }
 
-auto OFileImpl::Write(const Bytes& data, size_type size) -> size_type {
+auto OFile::Write(const Bytes& data, size_type size) -> size_type {
     if (!is_opened())
         throw std::runtime_error("Attempted to write from the closed stream");
 
@@ -102,6 +102,24 @@ auto OFileImpl::Write(const Bytes& data, size_type size) -> size_type {
     }
     fflush(filepointer());
     return total_bytes;
+}
+
+// read data from input to buffer and write to output until whole input is transferred to output
+File::size_type Communicate(std::shared_ptr<IFile> input, std::shared_ptr<OFile> output) {
+    File::size_type total_bytes = 0;
+    while (true) {
+        Bytes read_bytes = input->Read(BUFSIZ);
+        if (read_bytes.empty()) {
+            break;
+        }
+        output->Write(read_bytes, read_bytes.size());
+        total_bytes += read_bytes.size();
+    }
+    return total_bytes;
+}
+
+std::future<File::size_type> AsyncCommunicate(std::shared_ptr<IFile> input, std::shared_ptr<OFile> output) {
+    return std::async(std::launch::async, Communicate, input, output);
 }
 
 } // namespace coj
