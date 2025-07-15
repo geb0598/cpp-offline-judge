@@ -9,7 +9,7 @@ FileImpl::FileImpl(std::FILE *fp) : fp_(fp) {}
 FileImpl::FileImpl(int fd, const std::string& mode) {
     FILE* fp = ::fdopen(fd, mode.c_str()); // TODO: portability
     if (fp == nullptr)
-        throw std::system_error(GetLastErrorCode(), "Failed to open file descriptor");
+        throw OSError("Failed to open file descriptor");
     fp_.reset(fp);
 }
 FileImpl::FileImpl(const std::filesystem::path& file, const std::string& mode) {
@@ -17,7 +17,7 @@ FileImpl::FileImpl(const std::filesystem::path& file, const std::string& mode) {
         throw std::invalid_argument("File '" + file.string() + "' doesn't exist");
     FILE* fp = std::fopen(file.c_str(), mode.c_str());
     if (fp == nullptr)
-        throw std::system_error(GetLastErrorCode(), "Failed to open file '" + file.string() + "'");
+        throw OSError("Failed to open file '" + file.string() + "'");
     fp_.reset(fp);
 }
 
@@ -42,14 +42,14 @@ bool FileImpl::is_error() const noexcept {
     return std::ferror(fp_.get());
 }
 
-IFile::IFile(std::FILE* fp) : FileImpl(fp) {}
-IFile::IFile(int fd) : FileImpl(fd, "r") {}
-IFile::IFile(const std::filesystem::path& file) : FileImpl(file, "r") {}
+IFileImpl::IFileImpl(std::FILE* fp) : FileImpl(fp) {}
+IFileImpl::IFileImpl(int fd) : FileImpl(fd, "r") {}
+IFileImpl::IFileImpl(const std::filesystem::path& file) : FileImpl(file, "r") {}
 
-bool IFile::is_readable() const noexcept { return true; }
-bool IFile::is_writable() const noexcept { return false; }
+bool IFileImpl::is_readable() const noexcept { return true; }
+bool IFileImpl::is_writable() const noexcept { return false; }
 
-Bytes IFile::Read(size_type size) {
+Bytes IFileImpl::Read(size_type size) {
     if (!is_opened())
         throw std::runtime_error("Attempted to read from the closed stream");
     Bytes buffer(size);
@@ -62,7 +62,7 @@ Bytes IFile::Read(size_type size) {
             if (is_eof()) {
                 break;
             } else {
-                throw std::system_error(GetLastErrorCode(), "Error occurred while reading from the stream");
+                throw OSError("Error occurred while reading from the stream");
             }
         }
     }
@@ -70,56 +70,38 @@ Bytes IFile::Read(size_type size) {
     return buffer;
 }
 
-auto IFile::Write(const Bytes& data, size_type size) -> size_type {
+auto IFileImpl::Write(const Bytes& data, size_type offset, size_type size) -> size_type {
     throw std::runtime_error("Try writing to read-only stream");
 }
 
-OFile::OFile(std::FILE* fp) : FileImpl(fp) {}
-OFile::OFile(int fd) : FileImpl(fd, "w") {}
-OFile::OFile(const std::filesystem::path& file) : FileImpl(file, "w") {}
+OFileImpl::OFileImpl(std::FILE* fp) : FileImpl(fp) {}
+OFileImpl::OFileImpl(int fd) : FileImpl(fd, "w") {}
+OFileImpl::OFileImpl(const std::filesystem::path& file) : FileImpl(file, "w") {}
 
-bool OFile::is_readable() const noexcept { return false; }
-bool OFile::is_writable() const noexcept { return true; }
+bool OFileImpl::is_readable() const noexcept { return false; }
+bool OFileImpl::is_writable() const noexcept { return true; }
 
-Bytes OFile::Read(size_type size) {
+Bytes OFileImpl::Read(size_type size) {
     throw std::runtime_error("Try reading from write-only stream");
 }
 
-auto OFile::Write(const Bytes& data, size_type size) -> size_type {
+auto OFileImpl::Write(const Bytes& data, size_type offset, size_type size) -> size_type {
     if (!is_opened())
         throw std::runtime_error("Attempted to write from the closed stream");
 
     size_type total_bytes = 0;
     while (total_bytes < size) {
         size_type bytes_to_write = size - total_bytes;
-        size_type bytes_written = std::fwrite(data.data() + total_bytes, sizeof(value_type), bytes_to_write, filepointer());
+        size_type bytes_written = std::fwrite(data.data() + offset + total_bytes, sizeof(value_type), bytes_to_write, filepointer());
         total_bytes += bytes_written;
         if (bytes_written < bytes_to_write) {
             if (is_error()) {
-                throw std::system_error(GetLastErrorCode(), "Error occurred while writing to the stream");
+                throw OSError("Write error on file stream");
             }
         }
     }
     fflush(filepointer());
     return total_bytes;
-}
-
-// read data from input to buffer and write to output until whole input is transferred to output
-File::size_type Communicate(std::shared_ptr<IFile> input, std::shared_ptr<OFile> output) {
-    File::size_type total_bytes = 0;
-    while (true) {
-        Bytes read_bytes = input->Read(BUFSIZ);
-        if (read_bytes.empty()) {
-            break;
-        }
-        output->Write(read_bytes, read_bytes.size());
-        total_bytes += read_bytes.size();
-    }
-    return total_bytes;
-}
-
-std::future<File::size_type> AsyncCommunicate(std::shared_ptr<IFile> input, std::shared_ptr<OFile> output) {
-    return std::async(std::launch::async, Communicate, input, output);
 }
 
 } // namespace coj

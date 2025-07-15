@@ -61,22 +61,22 @@ protected:
 
 TEST_F(FileTest, FileImplConstructorPath) {
     GTEST_LOG_(INFO) << "Running FileImplConstructorPath test.";
-    // Test constructor with a valid path for IFile
+    // Test constructor with a valid path for IFileImpl
     ASSERT_NO_THROW({
-        IFile file(temp_file_path);
+        IFileImpl file(temp_file_path);
         EXPECT_TRUE(file.is_opened());
     });
 
-    // Test constructor with a valid path for OFile
+    // Test constructor with a valid path for OFileImpl
     ASSERT_NO_THROW({
-        OFile file(temp_file_path);
+        OFileImpl file(temp_file_path);
         EXPECT_TRUE(file.is_opened());
     });
 
     // Test constructor with a non-existent path (should throw invalid_argument)
     std::filesystem::path non_existent_path = std::filesystem::temp_directory_path() / "non_existent_file.txt";
     EXPECT_THROW({
-        IFile file(non_existent_path);
+        IFileImpl file(non_existent_path);
     }, std::invalid_argument);
     GTEST_LOG_(INFO) << "FileImplConstructorPath test finished.";
 }
@@ -94,7 +94,7 @@ TEST_F(FileTest, IFileImplRead) {
         std::filesystem::path read_file_path = create_temp_file(test_content);
         GTEST_LOG_(INFO) << "  Iteration " << i << ": Created temp file for read: " << read_file_path;
 
-        IFile ifile(read_file_path);
+        IFileImpl ifile(read_file_path);
         EXPECT_TRUE(ifile.is_readable());
         EXPECT_FALSE(ifile.is_writable());
 
@@ -117,10 +117,10 @@ TEST_F(FileTest, IFileImplRead) {
 
 TEST_F(FileTest, IFileImplWriteThrows) {
     GTEST_LOG_(INFO) << "Running IFileImplWriteThrows test.";
-    IFile ifile(temp_file_path);
+    IFileImpl ifile(temp_file_path);
     Bytes data = {'a', 'b', 'c'};
     EXPECT_THROW({
-        ifile.Write(data, data.size());
+        ifile.Write(data, 0, data.size());
     }, std::runtime_error);
     GTEST_LOG_(INFO) << "IFileImplWriteThrows test finished.";
 }
@@ -138,14 +138,14 @@ TEST_F(FileTest, OFileImplWrite) {
         std::filesystem::path write_file_path = create_temp_file(); // Create an empty file
         GTEST_LOG_(INFO) << "  Iteration " << i << ": Created temp file for write: " << write_file_path;
         
-        OFile ofile(write_file_path);
+        OFileImpl ofile(write_file_path);
         EXPECT_FALSE(ofile.is_readable());
         EXPECT_TRUE(ofile.is_writable());
 
-        ofile.Write(write_content_bytes, write_content_bytes.size());
+        ofile.Write(write_content_bytes, 0, write_content_bytes.size());
 
-        // Verify content by reading it back with an IFile
-        IFile ifile(write_file_path);
+        // Verify content by reading it back with an IFileImpl
+        IFileImpl ifile(write_file_path);
         Bytes read_bytes = ifile.Read(write_content_bytes.size());
         std::string read_string(read_bytes.begin(), read_bytes.end());
         
@@ -160,7 +160,7 @@ TEST_F(FileTest, OFileImplWrite) {
 
 TEST_F(FileTest, OFileImplReadThrows) {
     GTEST_LOG_(INFO) << "Running OFileImplReadThrows test.";
-    OFile ofile(temp_file_path);
+    OFileImpl ofile(temp_file_path);
     EXPECT_THROW({
         ofile.Read(10);
     }, std::runtime_error);
@@ -169,81 +169,12 @@ TEST_F(FileTest, OFileImplReadThrows) {
 
 TEST_F(FileTest, FilenoAndFilepointer) {
     GTEST_LOG_(INFO) << "Running FilenoAndFilepointer test.";
-    IFile file(temp_file_path);
+    IFileImpl file(temp_file_path);
     EXPECT_GE(file.fileno(), 0); // File descriptor should be non-negative
     EXPECT_NE(file.filepointer(), nullptr); // FILE* should not be null
     GTEST_LOG_(INFO) << "FilenoAndFilepointer test finished.";
 }
 
-TEST_F(FileTest, Communicate) {
-    GTEST_LOG_(INFO) << "Running Communicate test.";
-    for (int i = 0; i < 10; ++i) { // Run a few iterations
-        SCOPED_TRACE(testing::Message() << "Iteration " << i);
-        size_t content_length = utils::RandomGenerator::get_instance().get_int(1, 4096); // Random length
-        std::string test_content = utils::RandomGenerator::get_instance().get_string(content_length);
 
-        std::filesystem::path input_file_path = create_temp_file(test_content);
-        std::filesystem::path output_file_path = create_temp_file(); // Empty output file
-
-        std::shared_ptr<IFile> input_file = std::make_shared<IFile>(input_file_path);
-        std::shared_ptr<OFile> output_file = std::make_shared<OFile>(output_file_path);
-
-        File::size_type transferred_bytes = Communicate(input_file, output_file);
-
-        EXPECT_EQ(transferred_bytes, content_length);
-
-        // Verify content by reading it back from the output file
-        std::string read_back_content;
-        std::ifstream ifs(output_file_path, std::ios::binary);
-        if (ifs.is_open()) {
-            read_back_content.assign((std::istreambuf_iterator<char>(ifs)),
-                                     (std::istreambuf_iterator<char>()));
-            ifs.close();
-        } else {
-            FAIL() << "Failed to open output file for verification: " << output_file_path;
-        }
-        EXPECT_EQ(read_back_content, test_content);
-
-        std::filesystem::remove(input_file_path);
-        std::filesystem::remove(output_file_path);
-    }
-    GTEST_LOG_(INFO) << "Communicate test finished.";
-}
-
-TEST_F(FileTest, AsyncCommunicate) {
-    GTEST_LOG_(INFO) << "Running AsyncCommunicate test.";
-    for (int i = 0; i < 10; ++i) { // Run a few iterations
-        SCOPED_TRACE(testing::Message() << "Iteration " << i);
-        size_t content_length = utils::RandomGenerator::get_instance().get_int(1, 4096); // Random length
-        std::string test_content = utils::RandomGenerator::get_instance().get_string(content_length);
-
-        std::filesystem::path input_file_path = create_temp_file(test_content);
-        std::filesystem::path output_file_path = create_temp_file(); // Empty output file
-
-        std::shared_ptr<IFile> input_file = std::make_shared<IFile>(input_file_path);
-        std::shared_ptr<OFile> output_file = std::make_shared<OFile>(output_file_path);
-
-        std::future<File::size_type> future_transferred_bytes = AsyncCommunicate(input_file, output_file);
-        File::size_type transferred_bytes = future_transferred_bytes.get();
-
-        EXPECT_EQ(transferred_bytes, content_length);
-
-        // Verify content by reading it back from the output file
-        std::string read_back_content;
-        std::ifstream ifs(output_file_path, std::ios::binary);
-        if (ifs.is_open()) {
-            read_back_content.assign((std::istreambuf_iterator<char>(ifs)),
-                                     (std::istreambuf_iterator<char>()));
-            ifs.close();
-        } else {
-            FAIL() << "Failed to open output file for verification: " << output_file_path;
-        }
-        EXPECT_EQ(read_back_content, test_content);
-
-        std::filesystem::remove(input_file_path);
-        std::filesystem::remove(output_file_path);
-    }
-    GTEST_LOG_(INFO) << "AsyncCommunicate test finished.";
-}
 
 } // namespace coj

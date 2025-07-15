@@ -6,6 +6,8 @@
 #include <thread>
 #include <vector>
 
+#include "bytes.h"
+
 // specialize template struct defined in C++ standard library
 // https://en.cppreference.com/w/cpp/language/extending_std.html
 namespace std {
@@ -14,14 +16,15 @@ template<>
 struct default_delete<FILE> {
     constexpr default_delete() noexcept = default;
 
-    void operator()(FILE* ptr) const { std::fclose(ptr); }
+    void operator()(FILE* ptr) const { 
+        if (ptr != nullptr)
+            std::fclose(ptr); 
+    }
 };
 
 } // namespace std
 
 namespace coj {
-
-using Bytes = std::vector<char>;
 
 class File {
 public:
@@ -41,7 +44,7 @@ public:
     virtual bool is_error() const noexcept = 0;
 
     virtual Bytes Read(size_type size) = 0;
-    virtual size_type Write(const Bytes& data, size_type size) = 0;
+    virtual size_type Write(const Bytes& data, size_type offset, size_type size) = 0;
 };
 
 class FileImpl : public File {
@@ -72,57 +75,57 @@ private:
     std::unique_ptr<std::FILE> fp_;
 };
 
-class IFile : public FileImpl {
+class IFileImpl : public FileImpl {
 public:
     using FileImpl::size_type;
     using FileImpl::value_type;
 
-    ~IFile() = default;
+    ~IFileImpl() = default;
 
-    IFile(std::FILE* fp);
-    IFile(int fd);
-    IFile(const std::filesystem::path& file);
+    IFileImpl(std::FILE* fp);
+    IFileImpl(int fd);
+    IFileImpl(const std::filesystem::path& file);
 
-    IFile(IFile&&) noexcept = default;
-    IFile& operator=(IFile&&) noexcept = default;
+    IFileImpl(IFileImpl&&) noexcept = default;
+    IFileImpl& operator=(IFileImpl&&) noexcept = default;
 
-    IFile(const IFile&) = delete;
-    IFile& operator=(const IFile&) = delete;
+    IFileImpl(const IFileImpl&) = delete;
+    IFileImpl& operator=(const IFileImpl&) = delete;
 
     virtual bool is_readable() const noexcept override;
     virtual bool is_writable() const noexcept override;
 
     virtual Bytes Read(size_type size) override;
-    virtual size_type Write(const Bytes& data, size_type size) override;
+    virtual size_type Write(const Bytes& data, size_type offset, size_type size) override;
 };
 
-class OFile : public FileImpl {
+class OFileImpl : public FileImpl {
 public:
     using FileImpl::size_type;
     using FileImpl::value_type;
 
-    ~OFile() = default;
+    ~OFileImpl() = default;
 
-    OFile(std::FILE* fp);
-    OFile(int fd);
-    OFile(const std::filesystem::path& file);
+    OFileImpl(std::FILE* fp);
+    OFileImpl(int fd);
+    OFileImpl(const std::filesystem::path& file);
 
-    OFile(OFile&&) noexcept = default;
-    OFile& operator=(OFile&&) noexcept = default;
+    OFileImpl(OFileImpl&&) noexcept = default;
+    OFileImpl& operator=(OFileImpl&&) noexcept = default;
 
-    OFile(const OFile&) = delete;
-    OFile& operator=(const OFile&) = delete;
+    OFileImpl(const OFileImpl&) = delete;
+    OFileImpl& operator=(const OFileImpl&) = delete;
 
     virtual bool is_readable() const noexcept override;
     virtual bool is_writable() const noexcept override;
 
     virtual Bytes Read(size_type size) override;
-    virtual size_type Write(const Bytes& data, size_type size) override;
+    virtual size_type Write(const Bytes& data, size_type offset, size_type size) override;
 };
 
-File::size_type Communicate(std::shared_ptr<IFile> input, std::shared_ptr<OFile> output);
+File::size_type Communicate(std::shared_ptr<IFileImpl> input, std::shared_ptr<OFileImpl> output);
 
-std::future<File::size_type> AsyncCommunicate(std::shared_ptr<IFile> input, std::shared_ptr<OFile> output);
+std::future<File::size_type> AsyncCommunicate(std::shared_ptr<IFileImpl> input, std::shared_ptr<OFileImpl> output);
 
 } // namespace coj
 
