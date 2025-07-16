@@ -1,6 +1,7 @@
 # cpp-offline-judge/src/CMakeLists.txt
 
-file(GLOB CPP_OFFLINE_JUDGE_SOURCES CONFIGURE_DEPENDS *.cpp)
+# file(GLOB CPP_OFFLINE_JUDGE_SOURCES CONFIGURE_DEPENDS *.cpp)
+set(CPP_OFFLINE_JUDGE_SOURCES pipe.cpp)
 
 add_library(cpp-offline-judge STATIC
     ${CPP_OFFLINE_JUDGE_SOURCES}

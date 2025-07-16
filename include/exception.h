@@ -12,6 +12,37 @@
 
 namespace coj {
 
+enum class IOErrc {
+    IO_OK = 0,
+    IO_EOF,
+    IO_INVALID_ARG
+};
+
+struct IOErrorCategory : public std::error_category {
+    static const IOErrorCategory& get() {
+        static IOErrorCategory category;
+        return category;
+    }
+
+    const char* name() const noexcept override { return "I/O Error"; }
+    std::string message(int ev) const override {
+        switch (static_cast<IOErrc>(ev)) {
+            case IOErrc::IO_OK:
+                return "OK";
+            case IOErrc::IO_EOF:
+                return "EOF";
+            case IOErrc::IO_INVALID_ARG:
+                return "Invalid Arguments";
+            default:
+                return "Unknown I/O Error";
+        }
+    }
+};
+
+inline std::error_code make_error_code(IOErrc error) {
+    return std::error_code(static_cast<int>(error), IOErrorCategory::get());
+}
+
 inline std::error_code GetLastErrorCode() noexcept {
 #ifdef _WIN32
     return std::error_code(::GetLastError(), std::system_category());
@@ -90,5 +121,10 @@ private:
 };
 
 } // namespace coj
+
+namespace std {
+    template<>
+    struct is_error_code_enum<coj::IOErrc> : true_type {};
+} // namespace std
 
 #endif

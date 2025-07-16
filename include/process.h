@@ -26,9 +26,9 @@ struct IPCSource {
     IPCSource& operator=(IPCSource&&) = delete;
 
     IPCOption option;
-    std::shared_ptr<File> pipe_reader;
-    std::shared_ptr<File> pipe_writer;
-    std::unique_ptr<File> source;
+    std::shared_ptr<Pipe> pipe_reader;
+    std::shared_ptr<Pipe> pipe_writer;
+    std::unique_ptr<Pipe> source;
 };
 
 struct IPCDestination {
@@ -41,9 +41,9 @@ struct IPCDestination {
     IPCDestination& operator=(IPCDestination&&) = delete;
 
     IPCOption option;
-    std::shared_ptr<File> pipe_reader;
-    std::shared_ptr<File> pipe_writer;
-    std::unique_ptr<File> destination;
+    std::shared_ptr<Pipe> pipe_reader;
+    std::shared_ptr<Pipe> pipe_writer;
+    std::unique_ptr<Pipe> destination;
 };
 
 struct IPCResult {
@@ -57,7 +57,7 @@ public:
     using value_type = Bytes::value_type;
     using size_type = Bytes::size_type;
     using Seconds = std::chrono::duration<double>;
-    using PipeHandle = std::weak_ptr<File>;
+    using PipeHandle = std::weak_ptr<Pipe>;
 
     ~Popen();
     Popen (

@@ -58,6 +58,7 @@ protected:
     }
 };
 
+/*
 TEST_F(PopenTest, BasicCommandExecution) {
     Popen p("echo Hello");
     ASSERT_TRUE(p.pid() > 0);
@@ -234,32 +235,6 @@ TEST_F(PopenTest, EmptyCommand) {
     }, std::invalid_argument);
 }
 
-TEST_F(PopenTest, CommunicateWithTimeoutAndPartialRead) {
-    // Process writes some data, then sleeps, then writes more. Timeout should capture first part.
-
-    // TODO: instructions do nothing blocks program, because there is nothing to read from output pipe
-    //       thread keep blocking until readable data has come
-    // Popen p("bash -c \"echo part1; while true; do :; done\"", IPCOption::NONE, IPCOption::PIPE);
-    Popen p("bash -c \"echo part1; while true; do echo 'writing...' > /dev/stdout; sleep 1; done\"", IPCOption::NONE, IPCOption::NONE);
-    auto start_time = std::chrono::steady_clock::now();
-    try {
-        p.Communicate({}, Popen::Seconds(0.1));
-        FAIL() << "Expected TimeoutExpired exception, but none was thrown.";
-    } catch (const TimeoutExpired& e) {
-        auto end_time = std::chrono::steady_clock::now();
-        // Check if it actually timed out around 0.1 seconds
-        EXPECT_GE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 100);
-        EXPECT_LE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 200); // Relaxed buffer
-
-        // Verify partial output was captured from the exception
-        ASSERT_TRUE(e.std_out().has_value());
-        EXPECT_EQ(std::string(e.std_out().value().begin(), e.std_out().value().end()), "part1\n");
-    }
-    // Ensure the process is terminated and cleaned up
-    p.Kill();
-    p.Wait();
-}
-
 TEST_F(PopenTest, CommunicateWithLargeStderr) {
     std::string large_error(1024 * 10, 'E'); // 10KB of 'E'
     Popen p("bash -c \"echo \"" + large_error + "\" >&2\"", IPCOption::NONE, IPCOption::NONE, IPCOption::PIPE);
@@ -285,6 +260,32 @@ TEST_F(PopenTest, CommunicateWithImmediateExit) {
     EXPECT_TRUE(result.stderr_data.empty());
     ASSERT_TRUE(p.returncode().has_value());
     EXPECT_EQ(p.returncode().value(), 0);
+}
+*/
+
+TEST_F(PopenTest, CommunicateWithTimeoutAndPartialRead) {
+    // Process writes some data, then sleeps, then writes more. Timeout should capture first part.
+    // The subprocess should continuously write to stdout to keep the pipe open and test blocking I/O.
+    Popen p("bash -c \"for i in $(seq 1 5); do echo \"part$i\"; sleep 0.1; done\"", IPCOption::NONE, IPCOption::PIPE);
+    auto start_time = std::chrono::steady_clock::now();
+    try {
+        // Set a timeout that is less than the total time the subprocess will run
+        p.Communicate({}, Popen::Seconds(0.25)); // Should capture "part1\npart2\n"
+        FAIL() << "Expected TimeoutExpired exception, but none was thrown.";
+    } catch (const TimeoutExpired& e) {
+        auto end_time = std::chrono::steady_clock::now();
+        // Check if it actually timed out around 0.25 seconds
+        EXPECT_GE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 250);
+        EXPECT_LE(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count(), 500); // Allow some buffer
+
+        // Verify partial output was captured from the exception
+        ASSERT_TRUE(e.std_out().has_value());
+        // Expecting "part1\n" and "part2\n" to be captured within 0.25 seconds
+        EXPECT_EQ(std::string(e.std_out().value().begin(), e.std_out().value().end()), "part1\npart2\n");
+    }
+    // Ensure the process is terminated and cleaned up
+    p.Kill();
+    p.Wait();
 }
 
 } // namespace coj

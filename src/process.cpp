@@ -20,7 +20,7 @@ extern char **environ;
 namespace coj {
 
 IPCSource::IPCSource(const std::filesystem::path& file) 
-    : option(IPCOption::FILE), source(std::make_unique<IFileImpl>(file)) {}
+    : option(IPCOption::FILE), source(std::make_unique<IPipeImpl>(file)) {}
 
 IPCSource::IPCSource(IPCOption option) : option(option) {
     switch (option) {
@@ -29,8 +29,8 @@ IPCSource::IPCSource(IPCOption option) : option(option) {
             int pipe_fd[2];
             if (::pipe(pipe_fd) == -1)
                 throw OSError("Failed to open pipe");
-            pipe_reader = std::make_shared<IFileImpl>(pipe_fd[0]);
-            pipe_writer = std::make_shared<OFileImpl>(pipe_fd[1]);
+            pipe_reader = std::make_shared<IPipeImpl>(pipe_fd[0]);
+            pipe_writer = std::make_shared<OPipeImpl>(pipe_fd[1]);
             break;
         }
         default: { throw std::invalid_argument("Invalid IPC option for standard input"); }
@@ -39,7 +39,7 @@ IPCSource::IPCSource(IPCOption option) : option(option) {
 
 
 IPCDestination::IPCDestination(const std::filesystem::path& file)
-    : option(IPCOption::FILE), destination(std::make_unique<OFileImpl>(file)) {}
+    : option(IPCOption::FILE), destination(std::make_unique<OPipeImpl>(file)) {}
 
 IPCDestination::IPCDestination(IPCOption option) : option(option) {
     switch (option) {
@@ -48,8 +48,8 @@ IPCDestination::IPCDestination(IPCOption option) : option(option) {
             int pipe_fd[2];
             if (::pipe(pipe_fd) == -1)
                 throw OSError("Failed to open pipe");
-            pipe_reader = std::make_shared<IFileImpl>(pipe_fd[0]);
-            pipe_writer = std::make_shared<OFileImpl>(pipe_fd[1]);
+            pipe_reader = std::make_shared<IPipeImpl>(pipe_fd[0]);
+            pipe_writer = std::make_shared<OPipeImpl>(pipe_fd[1]);
             break;
         }
         case IPCOption::STDOUT:  { break; }
@@ -57,7 +57,7 @@ IPCDestination::IPCDestination(IPCOption option) : option(option) {
             int fd = ::open("/dev/null", O_WRONLY);
             if (fd == -1)
                 throw OSError("Failed open dev/null");
-            destination = std::make_unique<OFileImpl>(fd);
+            destination = std::make_unique<OPipeImpl>(fd);
             break;
         }
         default: { throw std::invalid_argument("Invalid IPC option for standard error"); }

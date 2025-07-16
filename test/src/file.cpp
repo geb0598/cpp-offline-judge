@@ -63,20 +63,20 @@ TEST_F(FileTest, FileImplConstructorPath) {
     GTEST_LOG_(INFO) << "Running FileImplConstructorPath test.";
     // Test constructor with a valid path for IFileImpl
     ASSERT_NO_THROW({
-        IFileImpl file(temp_file_path);
+        IPipeImpl file(temp_file_path);
         EXPECT_TRUE(file.is_opened());
     });
 
     // Test constructor with a valid path for OFileImpl
     ASSERT_NO_THROW({
-        OFileImpl file(temp_file_path);
+        OPipeImpl file(temp_file_path);
         EXPECT_TRUE(file.is_opened());
     });
 
     // Test constructor with a non-existent path (should throw invalid_argument)
     std::filesystem::path non_existent_path = std::filesystem::temp_directory_path() / "non_existent_file.txt";
     EXPECT_THROW({
-        IFileImpl file(non_existent_path);
+        IPipeImpl file(non_existent_path);
     }, std::invalid_argument);
     GTEST_LOG_(INFO) << "FileImplConstructorPath test finished.";
 }
@@ -94,7 +94,7 @@ TEST_F(FileTest, IFileImplRead) {
         std::filesystem::path read_file_path = create_temp_file(test_content);
         GTEST_LOG_(INFO) << "  Iteration " << i << ": Created temp file for read: " << read_file_path;
 
-        IFileImpl ifile(read_file_path);
+        IPipeImpl ifile(read_file_path);
         EXPECT_TRUE(ifile.is_readable());
         EXPECT_FALSE(ifile.is_writable());
 
@@ -117,7 +117,7 @@ TEST_F(FileTest, IFileImplRead) {
 
 TEST_F(FileTest, IFileImplWriteThrows) {
     GTEST_LOG_(INFO) << "Running IFileImplWriteThrows test.";
-    IFileImpl ifile(temp_file_path);
+    IPipeImpl ifile(temp_file_path);
     Bytes data = {'a', 'b', 'c'};
     EXPECT_THROW({
         ifile.Write(data, 0, data.size());
@@ -138,14 +138,14 @@ TEST_F(FileTest, OFileImplWrite) {
         std::filesystem::path write_file_path = create_temp_file(); // Create an empty file
         GTEST_LOG_(INFO) << "  Iteration " << i << ": Created temp file for write: " << write_file_path;
         
-        OFileImpl ofile(write_file_path);
+        OPipeImpl ofile(write_file_path);
         EXPECT_FALSE(ofile.is_readable());
         EXPECT_TRUE(ofile.is_writable());
 
         ofile.Write(write_content_bytes, 0, write_content_bytes.size());
 
         // Verify content by reading it back with an IFileImpl
-        IFileImpl ifile(write_file_path);
+        IPipeImpl ifile(write_file_path);
         Bytes read_bytes = ifile.Read(write_content_bytes.size());
         std::string read_string(read_bytes.begin(), read_bytes.end());
         
@@ -160,7 +160,7 @@ TEST_F(FileTest, OFileImplWrite) {
 
 TEST_F(FileTest, OFileImplReadThrows) {
     GTEST_LOG_(INFO) << "Running OFileImplReadThrows test.";
-    OFileImpl ofile(temp_file_path);
+    OPipeImpl ofile(temp_file_path);
     EXPECT_THROW({
         ofile.Read(10);
     }, std::runtime_error);
@@ -169,7 +169,7 @@ TEST_F(FileTest, OFileImplReadThrows) {
 
 TEST_F(FileTest, FilenoAndFilepointer) {
     GTEST_LOG_(INFO) << "Running FilenoAndFilepointer test.";
-    IFileImpl file(temp_file_path);
+    IPipeImpl file(temp_file_path);
     EXPECT_GE(file.fileno(), 0); // File descriptor should be non-negative
     EXPECT_NE(file.filepointer(), nullptr); // FILE* should not be null
     GTEST_LOG_(INFO) << "FilenoAndFilepointer test finished.";

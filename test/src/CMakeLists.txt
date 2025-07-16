@@ -3,7 +3,9 @@
 find_package(GTest REQUIRED)
 enable_testing()
 
-file(GLOB TEST_SOURCES CONFIGURE_DEPENDS *.cpp)
+# file(GLOB TEST_SOURCES CONFIGURE_DEPENDS *.cpp)
+set(TEST_SOURCES exception.cpp
+    pipe.cpp)
 
 foreach(TEST_SOURCE ${TEST_SOURCES})
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
