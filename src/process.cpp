@@ -222,7 +222,7 @@ std::expected<Child, std::error_code> Command::Spawn() {
     int child_err = 0;
     auto read_result = Read(err_read.Get(), std::as_writable_bytes(std::span(&child_err, 1)));
 
-    if (read_result.status == IoStatus::Success && read_result.bytes > 0) {
+    if (read_result.has_value() && read_result->status == IoStatus::Success && read_result->bytes > 0) {
         ::waitpid(pid, nullptr, 0);
         return std::unexpected(std::error_code(child_err, std::generic_category()));
     }

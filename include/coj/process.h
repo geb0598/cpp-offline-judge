@@ -49,7 +49,7 @@ private:
     explicit Stdio(Type type) : type_(type) {}
     explicit Stdio(FileDescriptor fd) : type_(Type::File), fd_(std::move(fd)) {}
 
-    Type type_;
+    Type type_ = Type::Inherit;
     FileDescriptor fd_;
 };
 

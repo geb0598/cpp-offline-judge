@@ -1,5 +1,6 @@
 # test 디렉토리 기준의 경로
 set(TEST_SOURCES
+    src/compiler_test.cpp
     src/file_descriptor_test.cpp
     src/file_io_test.cpp
     src/process_test.cpp

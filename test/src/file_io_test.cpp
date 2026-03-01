@@ -26,10 +26,12 @@ TEST(FileIoTest, ReadWrite_WithEmptyBuffer_ReturnsSuccessAndZeroBytes) {
     auto read_result = Read(fd, std::span<std::byte>(empty_buffer));
     auto write_result = Write(fd, std::span<const std::byte>(empty_buffer));
 
-    EXPECT_EQ(read_result.status, IoStatus::Success);
-    EXPECT_EQ(read_result.bytes, 0);
-    EXPECT_EQ(write_result.status, IoStatus::Success);
-    EXPECT_EQ(write_result.bytes, 0);
+    ASSERT_TRUE(read_result.has_value());
+    EXPECT_EQ(read_result->status, IoStatus::Success);
+    EXPECT_EQ(read_result->bytes, 0);
+    ASSERT_TRUE(write_result.has_value());
+    EXPECT_EQ(write_result->status, IoStatus::Success);
+    EXPECT_EQ(write_result->bytes, 0);
 }
 
 TEST(FileIoTest, ReadWrite_WithValidPipe_TransfersDataCorrectly) {
@@ -44,15 +46,17 @@ TEST(FileIoTest, ReadWrite_WithValidPipe_TransfersDataCorrectly) {
 
     auto read_result = Read(read_fd.Get(), read_buffer);
 
-    EXPECT_EQ(write_result.status, IoStatus::Success);
-    EXPECT_EQ(write_result.bytes, message.size());
+    ASSERT_TRUE(write_result.has_value());
+    EXPECT_EQ(write_result->status, IoStatus::Success);
+    EXPECT_EQ(write_result->bytes, message.size());
 
-    EXPECT_EQ(read_result.status, IoStatus::Success);
-    EXPECT_EQ(read_result.bytes, message.size());
+    ASSERT_TRUE(read_result.has_value());
+    EXPECT_EQ(read_result->status, IoStatus::Success);
+    EXPECT_EQ(read_result->bytes, message.size());
 
     std::string read_message(
         reinterpret_cast<const char*>(read_buffer.data()), 
-        read_result.bytes
+        read_result->bytes
     );
     EXPECT_EQ(read_message, message);
 }
@@ -66,8 +70,9 @@ TEST(FileIoTest, Read_WhenWriteEndIsClosed_ReturnsEoF) {
 
     auto result = Read(read_fd.Get(), buffer);
 
-    EXPECT_EQ(result.status, IoStatus::EoF);
-    EXPECT_EQ(result.bytes, 0);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->status, IoStatus::EoF);
+    EXPECT_EQ(result->bytes, 0);
 }
 
 TEST(FileIoTest, Read_OnEmptyNonBlockingPipe_ReturnsWouldBlock) {
@@ -82,8 +87,9 @@ TEST(FileIoTest, Read_OnEmptyNonBlockingPipe_ReturnsWouldBlock) {
 
     auto result = Read(read_fd.Get(), buffer);
 
-    EXPECT_EQ(result.status, IoStatus::WouldBlock);
-    EXPECT_EQ(result.bytes, 0);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->status, IoStatus::WouldBlock);
+    EXPECT_EQ(result->bytes, 0);
 }
 
 } // namespace 

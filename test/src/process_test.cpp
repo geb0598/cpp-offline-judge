@@ -16,23 +16,6 @@ namespace {
 
 using namespace std::chrono_literals;
 
-std::string ReadAll(int fd) {
-    std::string result;
-    std::vector<std::byte> buffer(1024);
-    while (true) {
-        auto read_res = Read(fd, buffer);
-        if (read_res.status == IoStatus::EoF) {
-            break;
-        }
-        if (read_res.status == IoStatus::Success && read_res.bytes > 0) {
-            result.append(reinterpret_cast<const char*>(buffer.data()), read_res.bytes);
-        } else if (read_res.status == IoStatus::Error) {
-            break;
-        }
-    }
-    return result;
-}
-
 TEST(ProcessTest, Spawn_WithBinTrue_ReturnsSuccessExitStatus) {
     Command cmd("/bin/true");
 
@@ -78,7 +61,7 @@ TEST(ProcessTest, Spawn_WithEchoAndStdoutPiped_CapturesCorrectOutput) {
     auto& child = child_res.value();
 
     ASSERT_TRUE(child.stdout_pipe.has_value());
-    std::string output = ReadAll(child.stdout_pipe->Get());
+    std::string output = ReadAllAsString(child.stdout_pipe->Get()).value();
     
     (void)child.Wait();
 
@@ -103,7 +86,7 @@ TEST(ProcessTest, Spawn_WithCatAndPipedIo_EchoesInputToOutput) {
     (void)Write(child.stdin_pipe->Get(), input_span);
     child.stdin_pipe->Close(); 
 
-    std::string output = ReadAll(child.stdout_pipe->Get());
+    std::string output = ReadAllAsString(child.stdout_pipe->Get()).value();
     
     (void)child.Wait();
 
@@ -120,7 +103,7 @@ TEST(ProcessTest, Spawn_WithEnvClearAndSet_OutputsOnlySetVariables) {
     ASSERT_TRUE(child_res.has_value());
     auto& child = child_res.value();
 
-    std::string output = ReadAll(child.stdout_pipe->Get());
+    std::string output = ReadAllAsString(child.stdout_pipe->Get()).value();
     (void)child.Wait();
 
     EXPECT_EQ(output, "COJ_MAGIC_KEY=777\n");
