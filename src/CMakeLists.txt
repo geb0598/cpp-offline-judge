@@ -1,4 +1,5 @@
 set(COJ_SOURCES
+    checker.cpp
     compiler.cpp
     file_descriptor.cpp
     file_io.cpp
