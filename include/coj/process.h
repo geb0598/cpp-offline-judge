@@ -1,6 +1,6 @@
 #pragma once
 
-#include "file_descriptor.h"
+#include "coj/file_descriptor.h"
 
 #include <chrono>
 #include <filesystem>
@@ -79,6 +79,10 @@ public:
         long utime = usage_.ru_utime.tv_sec * 1000 + usage_.ru_utime.tv_usec / 1000;
         long stime = usage_.ru_stime.tv_sec * 1000 + usage_.ru_stime.tv_usec / 1000;
         return std::chrono::milliseconds(utime + stime);
+    }
+
+    [[nodiscard]] size_t GetMaxMemoryKb() const noexcept {
+        return static_cast<size_t>(usage_.ru_maxrss);
     }
 
 private:

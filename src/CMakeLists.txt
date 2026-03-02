@@ -3,6 +3,7 @@ set(COJ_SOURCES
     file_descriptor.cpp
     file_io.cpp
     process.cpp
+    runner.cpp
 )
 
 add_library(coj STATIC ${COJ_SOURCES})

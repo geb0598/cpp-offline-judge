@@ -4,6 +4,7 @@ set(TEST_SOURCES
     src/file_descriptor_test.cpp
     src/file_io_test.cpp
     src/process_test.cpp
+    src/runner_test.cpp
 )
 
 add_executable(coj_tests ${TEST_SOURCES})
